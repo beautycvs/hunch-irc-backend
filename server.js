@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const RELAY_TOKEN = "supersecret"; // change this later
+const RELAY_TOKEN = "hunchclient-irc-5858"; // change this later
 const PORT = process.env.PORT || 3000;
 
 // ============ DATA STORAGE ============
@@ -138,4 +138,5 @@ app.post('/link-discord', auth, (req, res) => {
 // ============ START ============
 app.listen(PORT, () => {
     console.log(`Hunch IRC backend running on port ${PORT}`);
+
 });
