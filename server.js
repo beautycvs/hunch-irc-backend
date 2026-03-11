@@ -30,11 +30,11 @@ discord.once('ready', () => {
     console.log(`Discord bot logged in as ${discord.user.tag}`);
 
     discord.channels.cache.forEach(channel => {
-        if (channel.name === DISCORD_CHANNEL_NAME) {
-            ircBridgeChannel = channel;
-            console.log(`Found IRC bridge channel: #${channel.name}`);
-        }
-    });
+    if (channel.name && channel.name.includes(DISCORD_CHANNEL_NAME)) {
+        ircBridgeChannel = channel;
+        console.log(`Found IRC bridge channel: #${channel.name}`);
+    }
+});
 
     if (!ircBridgeChannel) {
         console.warn(`Could not find channel: ${DISCORD_CHANNEL_NAME}`);
@@ -208,3 +208,4 @@ app.post('/link-discord', auth, (req, res) => {
 app.listen(PORT, () => {
     console.log(`Hunch IRC backend running on port ${PORT}`);
 });
+
