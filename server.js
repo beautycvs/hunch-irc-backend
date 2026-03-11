@@ -67,6 +67,7 @@ discord.login(DISCORD_TOKEN).catch(err => {
 
 // ============ WEBHOOK HELPER ============
 async function sendWebhook(username, message) {
+    console.log(`sendWebhook called: user=${username}, webhookUrl=${DISCORD_WEBHOOK_URL ? 'set' : 'NOT SET'}`);
     if (!DISCORD_WEBHOOK_URL) {
         // Fallback to bot if no webhook configured
         if (ircBridgeChannel) {
@@ -75,20 +76,19 @@ async function sendWebhook(username, message) {
         }
         return;
     }
-
     try {
-        await fetch(DISCORD_WEBHOOK_URL, {
+        console.log(`Sending webhook to: ${DISCORD_WEBHOOK_URL.substring(0, 50)}...`);
+        const response = await fetch(DISCORD_WEBHOOK_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 username: username,
                 content: message
-                // No avatar_url - uses webhook's default Discord avatar
             })
         });
+        console.log(`Webhook response status: ${response.status}`);
     } catch (err) {
         console.error('Failed to send webhook:', err.message);
-        // Fallback to bot
         if (ircBridgeChannel) {
             await ircBridgeChannel.send(`**[IRC] ${username}:** ${message}`)
                 .catch(e => console.error('Fallback also failed:', e.message));
@@ -207,5 +207,6 @@ app.post('/link-discord', auth, (req, res) => {
 app.listen(PORT, () => {
     console.log(`Hunch IRC backend running on port ${PORT}`);
 });
+
 
 
