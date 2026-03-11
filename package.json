@@ -9,7 +9,6 @@
   "dependencies": {
     "express": "^4.18.2",
     "discord.js": "^14.0.0",
-    "node-fetch": "^3.3.2"
   },
   "license": "ISC"
 }
