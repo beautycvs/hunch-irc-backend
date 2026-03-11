@@ -77,7 +77,6 @@ async function sendWebhook(username, message) {
     }
 
     try {
-        const fetch = (await import('node-fetch')).default;
         await fetch(DISCORD_WEBHOOK_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -208,4 +207,5 @@ app.post('/link-discord', auth, (req, res) => {
 app.listen(PORT, () => {
     console.log(`Hunch IRC backend running on port ${PORT}`);
 });
+
 
