@@ -6,13 +6,14 @@ app.use(express.json());
 const RELAY_TOKEN = process.env.RELAY_TOKEN || "fallback";
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const DISCORD_CHANNEL_NAME = process.env.DISCORD_CHANNEL || "irc-bridge";
+const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
 const PORT = process.env.PORT || 3000;
 
 // ============ DATA STORAGE ============
 let messages = [];
 let dmMessages = [];
 let onlineUsers = {};
-let discordLinks = {}; // ircNick -> discordUserId
+let discordLinks = {};
 
 // ============ DISCORD BOT ============
 const discord = new Client({
@@ -28,7 +29,6 @@ let ircBridgeChannel = null;
 discord.once('ready', () => {
     console.log(`Discord bot logged in as ${discord.user.tag}`);
 
-    // Find the irc-bridge channel
     discord.channels.cache.forEach(channel => {
         if (channel.name === DISCORD_CHANNEL_NAME) {
             ircBridgeChannel = channel;
@@ -42,12 +42,12 @@ discord.once('ready', () => {
 });
 
 discord.on('messageCreate', message => {
-    // Ignore bot messages and wrong channel
+    // Ignore bot messages and webhook messages
     if (message.author.bot) return;
+    if (message.webhookId) return;
     if (!ircBridgeChannel) return;
     if (message.channel.id !== ircBridgeChannel.id) return;
 
-    // Add Discord message to IRC message list
     const msg = {
         from: message.author.displayName || message.author.username,
         text: `[Discord] ${message.author.displayName || message.author.username}: ${message.content}`,
@@ -65,6 +65,38 @@ discord.login(DISCORD_TOKEN).catch(err => {
     console.error('Failed to login to Discord:', err.message);
 });
 
+// ============ WEBHOOK HELPER ============
+async function sendWebhook(username, message) {
+    if (!DISCORD_WEBHOOK_URL) {
+        // Fallback to bot if no webhook configured
+        if (ircBridgeChannel) {
+            await ircBridgeChannel.send(`**[IRC] ${username}:** ${message}`)
+                .catch(err => console.error('Failed to send to Discord:', err.message));
+        }
+        return;
+    }
+
+    try {
+        const fetch = (await import('node-fetch')).default;
+        await fetch(DISCORD_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: username,
+                content: message
+                // No avatar_url - uses webhook's default Discord avatar
+            })
+        });
+    } catch (err) {
+        console.error('Failed to send webhook:', err.message);
+        // Fallback to bot
+        if (ircBridgeChannel) {
+            await ircBridgeChannel.send(`**[IRC] ${username}:** ${message}`)
+                .catch(e => console.error('Fallback also failed:', e.message));
+        }
+    }
+}
+
 // ============ AUTH MIDDLEWARE ============
 function auth(req, res, next) {
     const token = req.headers['x-relay-token'];
@@ -76,7 +108,7 @@ function auth(req, res, next) {
 
 // ============ IRC ENDPOINTS ============
 
-app.post('/send', auth, (req, res) => {
+app.post('/send', auth, async (req, res) => {
     const { user, message, utcOffsetMin } = req.body;
     if (!user) return res.status(400).json({ error: 'missing user' });
 
@@ -96,11 +128,8 @@ app.post('/send', auth, (req, res) => {
     messages.push(msg);
     if (messages.length > 500) messages.shift();
 
-    // Forward to Discord
-    if (ircBridgeChannel) {
-        ircBridgeChannel.send(`**[IRC] ${user}:** ${message}`)
-            .catch(err => console.error('Failed to send to Discord:', err.message));
-    }
+    // Forward to Discord via webhook
+    await sendWebhook(user, message);
 
     res.json({ ok: true });
 });
